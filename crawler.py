@@ -1,3 +1,5 @@
+import os
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -5,7 +7,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 
 def setup_driver():
-    # Setup driver
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--disable-gpu')
@@ -13,59 +14,70 @@ def setup_driver():
 
     return driver
 
-def get_top_100_articles():
+
+
+def get_all_img(url):
     driver = setup_driver()
-
-    # URL to scrape
-    url = 'https://pageviews.wmcloud.org/topviews/?project=en.wikipedia.org&platform=all-access&date=2022&excludes='
-
     driver.get(url)
 
-    # Wait for the page to fully load
+    img_tags = driver.find_elements(By.TAG_NAME, 'img')
+    img_srcs = [img.get_attribute('src') for img in img_tags]
+    
+    driver.quit()
+
+    return img_srcs
+
+def download_img(url, path):
+    img_path = f'img/{path}'
+
+    if not os.path.exists(img_path):
+        os.makedirs(img_path)
+
+    filename = url
+    response = requests.get(url)
+
+    with open(f'{img_path}/{filename}', 'wb') as f:
+        f.write(response.content)
+
+    print(f'Successfully downloaded {filename} to img folder')
+
+def get_top_100_articles():
+    url = 'https://pageviews.wmcloud.org/topviews/?project=en.wikipedia.org&platform=all-access&date=2022&excludes='
+    
+    driver = setup_driver()
+    driver.get(url)
     time.sleep(10)
 
-    # Find the table
     rows = driver.find_elements(By.CSS_SELECTOR, 
                                 'table.output-table >'
                                 'tbody.topview-entries >'
                                 'tr.topview-entry')
 
-    # List of articles
     data = []
 
     for row in rows:
         try:
-            # Get page ranking
             ranking = row.find_element(By.CSS_SELECTOR, 
                                     'td.topview-entry--rank-wrapper >'
                                     'span.topview-entry--rank').text
-            # Get the link in each row
             link = row.find_element(By.CSS_SELECTOR, 
                                     'td.topview-entry--label-wrapper >'
                                     'div.topview-entry--label >'
                                     'a')
 
-            # Get the text and href attribute of the link
             text = link.text
             href = link.get_attribute('href')
 
-            # Print the text and href
-            # Create a dictionary with the data
             row_data = {
                 'ranking': ranking,
                 'text': text,
                 'href': href
             }
 
-            # Append the dictionary to the list
             data.append(row_data)
         except:
-            # Handle case where link is not found
             print('Link not found')
 
-    # Close the driver
     driver.quit()
 
     return data
-
-print(get_top_100_articles())
