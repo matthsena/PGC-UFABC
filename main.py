@@ -1,24 +1,7 @@
 import requests
+from crawler import get_top_100_articles
 
-# URL of the Wikipedia API
-url = 'https://pt.wikipedia.org/w/api.php'
+top_100_articles = get_top_100_articles()
 
-# Parameters for the API request
-params = {
-    'action': 'query',
-    'prop': 'extracts',
-    'titles': 'The_Boys_(TV_series)',
-    'format': 'json',
-    'explaintext': True,
-    'exsectionformat': 'wiki',
-    'exsentences': 5
-}
-
-# Send the API request
-response = requests.get(url, params=params)
-
-# Get the page content from the API response
-page = next(iter(response.json()['query'].values()))
-
-# Print the page content
-print(response.json)
+for article in top_100_articles:
+    print(article['href'])
