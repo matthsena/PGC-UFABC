@@ -28,18 +28,21 @@ def get_all_img(url):
     return img_srcs
 
 def download_img(url, path):
-    img_path = f'img/{path}'
+    try:
+        img_path = f'img/{path}'
 
-    if not os.path.exists(img_path):
-        os.makedirs(img_path)
+        if not os.path.exists(img_path):
+            os.makedirs(img_path)
 
-    filename = url
-    response = requests.get(url)
+        filename = url.split('/')[-1]
+        response = requests.get(url)
 
-    with open(f'{img_path}/{filename}', 'wb') as f:
-        f.write(response.content)
+        with open(f'{img_path}/{filename}', 'wb') as f:
+            f.write(response.content)
 
-    print(f'Successfully downloaded {filename} to img folder')
+        print(f'Successfully downloaded {filename} to img folder')
+    except OSError as oserr:
+        print(f'ERROR WITH {url}')
 
 def get_top_100_articles():
     url = 'https://pageviews.wmcloud.org/topviews/?project=en.wikipedia.org&platform=all-access&date=2022&excludes='
