@@ -4,13 +4,17 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-
-def get_top_100_articles():
+def setup_driver():
     # Setup driver
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+    return driver
+
+def get_top_100_articles():
+    driver = setup_driver()
 
     # URL to scrape
     url = 'https://pageviews.wmcloud.org/topviews/?project=en.wikipedia.org&platform=all-access&date=2022&excludes='
