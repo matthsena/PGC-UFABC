@@ -49,7 +49,7 @@ def get_top_100_articles():
     
     driver = setup_driver()
     driver.get(url)
-    time.sleep(10)
+    time.sleep(30)
 
     rows = driver.find_elements(By.CSS_SELECTOR, 
                                 'table.output-table >'
@@ -83,4 +83,4 @@ def get_top_100_articles():
 
     driver.quit()
 
-    return data
+    return data[:3]
