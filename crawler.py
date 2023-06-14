@@ -35,6 +35,11 @@ def download_img(url, path):
             os.makedirs(img_path)
 
         filename = url.split('/')[-1]
+        
+        # filter to prevent downloading svg
+        if filename.split('.')[-1] == 'svg':
+            return
+        
         response = requests.get(url)
 
         with open(f'{img_path}/{filename}', 'wb') as f:
