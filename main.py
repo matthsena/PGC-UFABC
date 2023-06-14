@@ -2,7 +2,8 @@ from crawler import get_top_100_articles, get_all_img, download_img
 import common_fn
 # import canny
 # import pearson
-import fourier
+# import fourier
+import skssim
 
 # top_100_articles = get_top_100_articles()
 
@@ -23,5 +24,8 @@ for sub in sub_dir:
         c = [(file, item) for item in file_list]
        
         for c_ in c:
-            similarity = fourier.similarity(f'./img/{sub}/{c_[0]}', f'./img/{sub}/{c_[1]}')
+            similarity = skssim.similarity(f'./img/{sub}/{c_[0]}', f'./img/{sub}/{c_[1]}')
             print(f'{similarity} -> {sub}/{c_[0]} - {sub}/{c_[1]}')
+            # create a csv and append the results
+            with open('results.csv', 'a') as f:
+                f.write(f'{similarity},{sub}/{c_[0]},{sub}/{c_[1]}\n')
