@@ -1,5 +1,8 @@
 selenium
 webdriver_manager
-opencv-python
 scikit-learn
+lpips
+numpy
 scikit-image
+opencv-python
+tensorflow

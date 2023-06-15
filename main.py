@@ -3,7 +3,10 @@ import common_fn
 # import canny
 # import pearson
 # import fourier
-import skssim
+# import skssim
+# import _lpips
+# import fsmi_algorithm as fsmi
+import dl_vgg16
 
 # top_100_articles = get_top_100_articles()
 
@@ -24,7 +27,7 @@ for sub in sub_dir:
         c = [(file, item) for item in file_list]
        
         for c_ in c:
-            similarity = skssim.similarity(f'./img/{sub}/{c_[0]}', f'./img/{sub}/{c_[1]}')
+            similarity = dl_vgg16.similarity(f'./img/{sub}/{c_[0]}', f'./img/{sub}/{c_[1]}')
             print(f'{similarity} -> {sub}/{c_[0]} - {sub}/{c_[1]}')
             # create a csv and append the results
             with open('results.csv', 'a') as f:
