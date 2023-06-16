@@ -1,3 +1,4 @@
+import threading
 import os
 import requests
 from selenium import webdriver
@@ -48,6 +49,16 @@ def download_img(url, path):
         print(f'Successfully downloaded {filename} to img folder')
     except OSError as oserr:
         print(f'ERROR WITH {url}')
+
+def download_images(urls, img_path):
+    threads = []
+    for url in urls:
+        t = threading.Thread(target=download_img, args=(url, img_path))
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
 
 def get_top_100_articles():
     url = 'https://pageviews.wmcloud.org/topviews/?project=en.wikipedia.org&platform=all-access&date=2022&excludes='
