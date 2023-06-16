@@ -6,3 +6,4 @@ numpy
 scikit-image
 opencv-python
 tensorflow
+nvidia-cudnn-cu11==8.5.0.96
