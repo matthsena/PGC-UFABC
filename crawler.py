@@ -10,7 +10,6 @@ import time
 def setup_driver():
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
-    options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     return driver
@@ -43,7 +42,7 @@ def download_img(url, path):
         
         response = requests.get(url)
 
-        with open(f'{img_path}/{filename}', 'wb') as f:
+        with open(f'{img_path}/{url}', 'wb') as f:
             f.write(response.content)
 
         print(f'Successfully downloaded {filename} to img folder')
@@ -98,5 +97,5 @@ def get_top_100_articles():
             print('Link not found')
 
     driver.quit()
-
-    return data[:3]
+    
+    return data[:5]
