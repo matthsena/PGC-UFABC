@@ -4,3 +4,5 @@ pandas
 numpy
 keras
 scipy
+tensorflow
+pillow
