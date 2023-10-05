@@ -5,104 +5,80 @@ import numpy as np
 import os
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
-import hashlib
+import time
+start_time = time.time()
 
-model = VGG19(weights='imagenet', include_top=False)
+model = None
 
 base_folder = 'data/rio/'
 
+def load_model():
+    global model
+    if model is None:
+        model = VGG19(weights='imagenet', include_top=False)
+
 def get_img_files(base_path):
-    file_list = []
-
-    folder_path = f'{base_folder}{base_path}'
-
-
-    for file_name in os.listdir(folder_path):
-        if os.path.isfile(os.path.join(folder_path, file_name)):
-            file_list.append(file_name)
+    folder_path = os.path.join(base_folder, base_path)
+    file_list = [file_name for file_name in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file_name))]
     return (base_path, sorted(file_list))
 
 def extract_features_vgg19(img_path):
-    img = image.load_img(f'{base_folder}{img_path}', target_size=(224, 224))
-
+    img = image.load_img(os.path.join(base_folder, img_path), target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
-
     x = preprocess_input(x)
-
     features = model.predict(x)
-    features = features.flatten()
+    return features.flatten()
 
-    return features
-
-def compare_two_images_vgg19(img1_path, img2_path):
-  try:
-    print(f'compare {img1_path} with {img2_path}')
-    features1 = extract_features_vgg19(img1_path)
-    features2 = extract_features_vgg19(img2_path)
-
+def compare_features(features1, features2):
     return distance.cosine(features1, features2)
-  except Exception as e:
-    print(f'ERROR: {img1_path} -> {img2_path} ==> {e}')
-
 
 langs_to_check = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
 
- 
 img_lang_files = list(map(get_img_files, langs_to_check))
 
+load_model()
+
+# Extract features for all images first
+features_dict = {}
+for lang, photos in img_lang_files:
+    for photo in photos:
+        img_path = os.path.join(lang, photo)
+        features_dict[img_path] = extract_features_vgg19(img_path)
+
 list_to_compare = []
+seen = set()
 
-for item in img_lang_files:
-  lang, photos = item
-
-  compare_with = [img_folder for img_folder in img_lang_files if img_folder[0] != lang]
-
-  for photo in photos:
-    for compare in compare_with:
-      compare_lang, compare_photos = compare
-
-      for compare_photo in compare_photos:
-        str_representation = ''.join(sorted([lang, compare_lang, photo, compare_photo]))
-        
-        hash_object = hashlib.sha256(str_representation.encode())
-        hash_hex = hash_object.hexdigest()
-
-        list_to_compare.append((hash_hex, (lang, compare_lang), (photo, compare_photo)))
-
+for lang, photos in img_lang_files:
+    for other_lang, other_photos in img_lang_files:
+        if lang != other_lang:
+            for photo in photos:
+                for other_photo in other_photos:
+                    sorted_items = tuple(sorted([lang, other_lang, photo, other_photo]))
+                    if sorted_items not in seen:
+                        seen.add(sorted_items)
+                        list_to_compare.append(((lang, other_lang), (photo, other_photo)))
 
 result_list = []
 
-
-seen = set()
-filtered_list = []
-
-for item in list_to_compare:
-    if item[0] not in seen:
-        seen.add(item[0])
-        filtered_list.append((item[1], item[2]))
-
-
 with ThreadPoolExecutor() as executor:
     futures = []
-    for item in filtered_list:
-        lang, img = item
-        future = executor.submit(compare_two_images_vgg19, f'{lang[0]}/{img[0]}', f'{lang[1]}/{img[1]}')
-        futures.append(future)
+    for (lang1, lang2), (img1, img2) in list_to_compare:
+        future = executor.submit(compare_features, features_dict[os.path.join(lang1, img1)], features_dict[os.path.join(lang2, img2)])
+        futures.append((future, (lang1, lang2, img1, img2)))
 
-    for future, item in zip(futures, filtered_list):
-        lang, img = item
-        
+    for future, (lang1, lang2, img1, img2) in futures:
         result_list.append({
-           'original': lang[0],
-           'compare': lang[1],
-           'original_photo': img[0],
-           'compare_photo': img[1],
+           'original': lang1,
+           'compare': lang2,
+           'original_photo': img1,
+           'compare_photo': img2,
            'distance': future.result()	
         })
-
-        print(f'{lang[0]}/{img[0]} -> {lang[1]}/{img[1]}: {future.result()}')
-
-
+        print(f'{lang1}/{img1} -> {lang2}/{img2}: {future.result()}')
 
 pd.DataFrame(result_list).to_csv('result-rj.csv', index=False)
+
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Total time taken: {elapsed_time:.2f} seconds")
