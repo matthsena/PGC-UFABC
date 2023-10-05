@@ -6,7 +6,6 @@ import os
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
-# from multiprocessing import Pool
 
 model = VGG19(weights='imagenet', include_top=False)
 
@@ -105,27 +104,5 @@ with ThreadPoolExecutor() as executor:
         print(f'{lang[0]}/{img[0]} -> {lang[1]}/{img[1]}: {future.result()}')
 
 
-
-...
-
-# with Pool() as pool:
-#   futures = []
-#   for item in filtered_list:
-#     lang, img = item
-#     future = pool.apply_async(compare_two_images_vgg19, (f'{lang[0]}/{img[0]}', f'{lang[1]}/{img[1]}'))
-#     futures.append(future)
-
-#   for future, item in zip(futures, filtered_list):
-#     lang, img = item
-    
-#     result_list.append({
-#        'original': lang[0],
-#        'compare': lang[1],
-#        'original_photo': img[0],
-#        'compare_photo': img[1],
-#        'distance': future.get()	
-#     })
-
-#     print(f'{lang[0]}/{img[0]} -> {lang[1]}/{img[1]}: {future.get()}')
 
 pd.DataFrame(result_list).to_csv('result-rj.csv', index=False)
