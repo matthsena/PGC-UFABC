@@ -6,32 +6,41 @@ import os
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import time
+from scores import simple_score, decay_score, diversity_score
+
 start_time = time.time()
 
 model = None
 
-base_folder = 'data/rio/'
+base_folder = 'data/paraiba/'
+
 
 def load_model():
     global model
     if model is None:
         model = VGG19(weights='imagenet', include_top=False)
 
+
 def get_img_files(base_path):
     folder_path = os.path.join(base_folder, base_path)
-    file_list = [file_name for file_name in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file_name))]
+    file_list = [file_name for file_name in os.listdir(
+        folder_path) if os.path.isfile(os.path.join(folder_path, file_name))]
     return (base_path, sorted(file_list))
 
+
 def extract_features_vgg19(img_path):
-    img = image.load_img(os.path.join(base_folder, img_path), target_size=(224, 224))
+    img = image.load_img(os.path.join(
+        base_folder, img_path), target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = preprocess_input(x)
     features = model.predict(x)
     return features.flatten()
 
+
 def compare_features(features1, features2):
     return distance.cosine(features1, features2)
+
 
 langs_to_check = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
 
@@ -54,31 +63,42 @@ for lang, photos in img_lang_files:
         if lang != other_lang:
             for photo in photos:
                 for other_photo in other_photos:
-                    sorted_items = tuple(sorted([lang, other_lang, photo, other_photo]))
+                    sorted_items = tuple(
+                        sorted([lang, other_lang, photo, other_photo]))
                     if sorted_items not in seen:
                         seen.add(sorted_items)
-                        list_to_compare.append(((lang, other_lang), (photo, other_photo)))
+                        list_to_compare.append(
+                            ((lang, other_lang), (photo, other_photo)))
 
 result_list = []
 
 with ThreadPoolExecutor() as executor:
     futures = []
     for (lang1, lang2), (img1, img2) in list_to_compare:
-        future = executor.submit(compare_features, features_dict[os.path.join(lang1, img1)], features_dict[os.path.join(lang2, img2)])
+        future = executor.submit(compare_features, features_dict[os.path.join(
+            lang1, img1)], features_dict[os.path.join(lang2, img2)])
         futures.append((future, (lang1, lang2, img1, img2)))
 
     for future, (lang1, lang2, img1, img2) in futures:
         result_list.append({
-           'original': lang1,
-           'compare': lang2,
-           'original_photo': img1,
-           'compare_photo': img2,
-           'distance': future.result()	
+            'article': 'Rio de Janeiro',
+            'original': lang1,
+            'compare': lang2,
+            'original_photo': img1,
+            'compare_photo': img2,
+            'distance': future.result()
         })
         print(f'{lang1}/{img1} -> {lang2}/{img2}: {future.result()}')
 
-pd.DataFrame(result_list).to_csv('result-rj.csv', index=False)
+df_result = pd.DataFrame(result_list)
 
-end_time = time.time()
-elapsed_time = end_time - start_time
-print(f"Total time taken: {elapsed_time:.2f} seconds")
+print(simple_score(df_result))
+print(decay_score(df_result))
+print(diversity_score(df_result))
+
+
+# pd.DataFrame(result_list).to_csv('result-rj.csv', index=False)
+
+# end_time = time.time()
+# elapsed_time = end_time - start_time
+# print(f"Total time taken: {elapsed_time:.2f} seconds")
