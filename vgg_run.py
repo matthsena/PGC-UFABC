@@ -7,12 +7,13 @@ import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import time
 from scores import simple_score, decay_score, diversity_score
+import sys
 
 start_time = time.time()
 
 model = None
 
-base_folder = 'data/paraiba/'
+base_folder = f'data/{sys.argv[1]}/'
 
 
 def load_model():
@@ -81,19 +82,24 @@ with ThreadPoolExecutor() as executor:
 
     for future, (lang1, lang2, img1, img2) in futures:
         result_list.append({
-            'article': 'Rio de Janeiro',
+            'article': sys.argv[1],
             'original': lang1,
             'compare': lang2,
             'original_photo': img1,
             'compare_photo': img2,
             'distance': future.result()
         })
-        print(f'{lang1}/{img1} -> {lang2}/{img2}: {future.result()}')
+        # print(f'{lang1}/{img1} -> {lang2}/{img2}: {future.result()}')
 
 df_result = pd.DataFrame(result_list)
 
+print('Score simples')
 print(simple_score(df_result))
+
+print('Score decaimento exponencial')
 print(decay_score(df_result))
+
+print('Score de diversidade')
 print(diversity_score(df_result))
 
 

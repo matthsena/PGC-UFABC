@@ -1,4 +1,3 @@
-import concurrent.futures
 import re
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -10,8 +9,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import os
 import urllib.request
+import time
 import pandas as pd
 from PIL import Image
+
+start_time = time.time()
 
 def is_gif(filename):
     return filename.split('.')[-1] == 'gif'
@@ -43,25 +45,6 @@ def replace_px_value(string):
 # url = 'https://en.wikipedia.org/wiki/Pel%C3%A9'
 # output_directory = './en-pele'
 
-def download_image(img_link, output_directory):
-    pattern = r'/(\d+)px-'
-    matches = re.findall(pattern, img_link)
-
-    if len(matches):
-        if int(matches[0]) < 100:
-            print(f'imagem ignorada: {img_link}')
-        else:
-            url_img = replace_px_value(img_link)
-            filename = url_img.split('/')[-1]
-
-            if not filename.split('.')[-1] == 'svg':
-                urllib.request.urlretrieve(url_img, os.path.join(output_directory, filename))
-                print(f'IMAGEM BAIXADA: {filename}')
-
-                check_and_convert_image(os.path.join(output_directory, filename))
-    else:
-        print(f'imagem ignorada: {img_link}')
-
 def start_download(url, output_directory):
     options = Options()
     options.add_argument("--no-sandbox")
@@ -80,13 +63,26 @@ def start_download(url, output_directory):
     if not os.path.isdir(output_directory):
         os.makedirs(output_directory)
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
-        for img_link in img_links:
-            futures.append(executor.submit(download_image, img_link, output_directory))
+    for i, img_link in enumerate(img_links):
+        # 
+        pattern = r'/(\d+)px-'
+        matches = re.findall(pattern, img_link)
 
-        for future in concurrent.futures.as_completed(futures):
-            pass
+        if len(matches):
+            if int(matches[0]) < 100:
+                print(f'imagem ignorada: {img_link}')
+            else:
+                url_img = replace_px_value(img_link)
+                filename = url_img.split('/')[-1]
+
+                if not filename.split('.')[-1] == 'svg':
+                    urllib.request.urlretrieve(url_img, os.path.join(output_directory, filename))
+                    print(f'IMAGEM BAIXADA: {filename}')
+
+                    check_and_convert_image(os.path.join(output_directory, filename))
+                # time.sleep(1)
+        else:
+            print(f'imagem ignorada: {img_link}')
 
     driver.quit()
 
@@ -100,3 +96,7 @@ for i, row in df.iterrows():
     else:
         if not os.path.isdir(img_path):
             os.makedirs(img_path)
+
+end_time = time.time()
+elapsed_time = (end_time - start_time) // 60
+print(f"Total time taken: {elapsed_time:.2f} minutes")
