@@ -68,3 +68,20 @@ def diversity_score(df):
     sorted_diversity_scores = dict(
         sorted(diversity_scores.items(), key=lambda item: item[1], reverse=True))
     return sorted_diversity_scores
+
+
+
+
+def parabola_score(df):
+    total_counts = df.groupby('original')['original_photo'].nunique()
+    N = len(total_counts.index)
+
+    parabolic_scores = {}
+    for language in total_counts.index:
+        content_count = total_counts[language]
+        score = (content_count - 1) * (content_count - N)
+        parabolic_scores[language] = score
+
+    sorted_decay_scores = dict(
+        sorted(parabolic_scores.items(), key=lambda item: item[1], reverse=True))
+    return sorted_decay_scores
