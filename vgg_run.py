@@ -6,7 +6,7 @@ import os
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import time
-from scores import simple_score, decay_score, diversity_score
+from scores import simple_score, decay_score, diversity_score, new_score
 import sys
 
 start_time = time.time()
@@ -105,18 +105,26 @@ for folder in folders:
     score_simples['article'] = folder
     score_simples['type'] = 'simple'
 
-    score_decaimento = decay_score(df_result)
+    score_z =  new_score(df_result)
+
+
+    score_decaimento = score_z['decay']
     score_decaimento['article'] = folder
     score_decaimento['type'] = 'decaimento'
 
-    score_diversidade = diversity_score(df_result)
-    score_diversidade['article'] = folder
-    score_diversidade['type'] = 'diversidade'
+    score_growth = score_z['growth']
+    score_growth['article'] = folder
+    score_growth['type'] = 'growth'
+
+    score_parabola = score_z['parabola']
+    score_parabola['article'] = folder
+    score_parabola['type'] = 'parabola'
 
     df = pd.DataFrame({
         f'{folder} Score simples': score_simples,
         f'{folder} Score decaimento exponencial': score_decaimento,
-        f'{folder} Score de diversidade': score_diversidade
+        f'{folder} Score de growth': score_growth,
+        f'{folder} Score de parabola': score_parabola
     }).T  # O .T é para transpor o DataFrame, transformando as colunas em linhas e vice-versa
 
     print(df)
