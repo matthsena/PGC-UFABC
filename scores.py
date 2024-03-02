@@ -41,15 +41,20 @@ def new_score(df):
     def growth_score(x, N_LANGS = 8):
         return np.exp((x) / math.pi) / np.exp(N_LANGS / math.pi)
     
+    def simple_score(x):
+        return 2 if x == 1 else 1
+    
     sorted_df['decay'] = sorted_df['num_languages'].apply(lambda x: decay_score(x))
     sorted_df['growth'] = sorted_df['num_languages'].apply(lambda x: growth_score(x))
     sorted_df['parabola'] = sorted_df['num_languages'].apply(lambda x: parabola_score(x))
+    sorted_df['simple'] = sorted_df['num_languages'].apply(lambda x: simple_score(x))
 
     langs_to_check = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
 
     dict_scores_decay = {}
     dict_scores_growth = {}
     dict_scores_parabola = {}
+    dict_scores_simple = {}
 
 
     for lang in langs_to_check:
@@ -58,11 +63,13 @@ def new_score(df):
         dict_scores_decay[lang] = lang_df['decay'].sum()
         dict_scores_growth[lang] = lang_df['growth'].sum()
         dict_scores_parabola[lang] = lang_df['parabola'].sum()
+        dict_scores_simple[lang] = lang_df['simple'].sum()
 
     scores = {
         'decay': dict_scores_decay,
         'growth': dict_scores_growth,
-        'parabola': dict_scores_parabola
+        'parabola': dict_scores_parabola,
+        'simple': dict_scores_simple,
     }
 
     return scores

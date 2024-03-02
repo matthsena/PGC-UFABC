@@ -14,14 +14,14 @@ start_time = time.time()
 model = None
 
 # read all folders names in data folder
-data_dir = 'data'
+data_dir = 'data-cidades'
 
 folders = [f for f in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, f))]
 
 final_df = pd.DataFrame()
 
 for folder in folders:
-    base_folder = f'data/{folder}/'
+    base_folder = f'data-cidades/{folder}/'
 
 
     def load_model():
@@ -101,9 +101,7 @@ for folder in folders:
 
     df_result = pd.DataFrame(result_list)
 
-    score_simples = simple_score(df_result)
-    score_simples['article'] = folder
-    score_simples['type'] = 'simple'
+
 
     score_z =  new_score(df_result)
 
@@ -119,6 +117,10 @@ for folder in folders:
     score_parabola = score_z['parabola']
     score_parabola['article'] = folder
     score_parabola['type'] = 'parabola'
+
+    score_simples = score_z['simple']
+    score_simples['article'] = folder
+    score_simples['type'] = 'simple'
 
     df = pd.DataFrame({
         f'{folder} Score simples': score_simples,
