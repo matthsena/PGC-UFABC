@@ -1,7 +1,7 @@
-from keras.applications.vgg19 import VGG19, preprocess_input
 from scipy.spatial import distance
 import os
 import pandas as pd
+import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 import time
 from scores import new_score
@@ -16,7 +16,8 @@ start_time = time.time()
 # read all folders names in data folder
 data_dir = 'data-quentes'
 
-folders = [f for f in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, f))]
+folders = [f for f in os.listdir(
+    data_dir) if os.path.isdir(os.path.join(data_dir, f))]
 
 final_df = pd.DataFrame()
 
@@ -25,17 +26,14 @@ vgg19 = FeatureExtractor()
 for folder in folders:
     base_folder = f'data-quentes/{folder}/'
 
-
     def get_img_files(base_path):
         folder_path = os.path.join(base_folder, base_path)
         file_list = [file_name for file_name in os.listdir(
             folder_path) if os.path.isfile(os.path.join(folder_path, file_name))]
         return (base_path, sorted(file_list))
 
-
     def compare_features(features1, features2):
         return distance.cosine(features1, features2)
-
 
     langs_to_check = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
 
@@ -62,28 +60,29 @@ for folder in folders:
     result_list = []
 
     with ThreadPoolExecutor() as executor:
-        futures = []
-        for (lang_1, lang_2), (img1, img2) in list_to_compare:
-            future = executor.submit(compare_features, features_dict[os.path.join(
-                lang_1, img1)], features_dict[os.path.join(lang_2, img2)])
-            futures.append((future, (lang_1, lang_2, img1, img2)))
+        futures = {executor.submit(compare_features, features_dict[os.path.join(lang_1, img1)],
+                                   features_dict[os.path.join(lang_2, img2)]): (lang_1, lang_2, img1, img2)
+                   for (lang_1, lang_2), (img1, img2) in list_to_compare}
 
-        for future, (lang_1, lang_2, img1, img2) in futures:
-            result_list.append({
-                'article': folder,
-                'original': lang_1,
-                'compare': lang_2,
-                'original_photo': img1,
-                'compare_photo': img2,
-                'distance': future.result()
-            })
+        for future in concurrent.futures.as_completed(futures):
+            lang_1, lang_2, img1, img2 = futures[future]
+            try:
+                result = future.result()
+            except Exception as exc:
+                print('%r generated an exception: %s' % (lang_1, exc))
+            else:
+                result_list.append({
+                    'article': folder,
+                    'original': lang_1,
+                    'compare': lang_2,
+                    'original_photo': img1,
+                    'compare_photo': img2,
+                    'distance': result
+                })
 
     df_result = pd.DataFrame(result_list)
 
-
-
-    score_z =  new_score(df_result)
-
+    score_z = new_score(df_result)
 
     score_decaimento = score_z['decay']
     score_decaimento['article'] = folder
@@ -116,6 +115,7 @@ for folder in folders:
 
 end_time = time.time()
 elapsed_time = (end_time - start_time) // 60
-print(f"Total time taken: {elapsed_time} minutes and {(end_time - start_time) % 60:.2f} seconds")
+print(
+    f"Total time taken: {elapsed_time} minutes and {(end_time - start_time) % 60:.2f} seconds")
 
 final_df.to_csv('score.csv', index=False)
