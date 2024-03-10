@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 from itertools import combinations, product
 from models.cv.vgg19 import FeatureExtractor
-from scores import new_score
+from scores import ScoreCalculator
 
 import concurrent.futures
 
@@ -76,7 +76,8 @@ class ImgFeatureExtractor:
             compare_list = self.get_comparison_list(img_files)
             results = self.get_results(base_folder, compare_list, features)
             df_result = pd.DataFrame(results)
-            score_z = new_score(df_result)
+            score_calculator = ScoreCalculator(df_result)
+            score_z = score_calculator.calculate_score()
             df = self.create_df(folder, score_z)
             pd.DataFrame(results).to_csv(
                 f'results/{folder}.csv', index=False)
