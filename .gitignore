@@ -165,6 +165,8 @@ data/
 *.png
 *.jpg
 *.jpeg
+*.gif
+*.svg
 
 data-cidades/
 data-classicos/
