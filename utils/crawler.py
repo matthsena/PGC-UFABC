@@ -39,7 +39,7 @@ class ImageDownloader:
 
             driver.quit()
         except Exception as e:
-            print(f"An error occurred in start_download: {e}")
+            print(f"[CRAWLER] Erro ao iniciar o download da imagem: {e}")
 
     def _get_chrome_options(self):
         options = Options()
@@ -57,21 +57,16 @@ class ImageDownloader:
         matches = re.findall(pattern, img_link)
 
         if len(matches):
-            if int(matches[0]) < 100:
-                print(f'imagem ignorada: {img_link}')
-            else:
+            if int(matches[0]) >= 100:
                 self._download_image(img_link)
-        else:
-            print(f'imagem ignorada: {img_link}')
 
     def _download_image(self, img_link):
         url_img = self._replace_px_value(img_link)
         filename = url_img.split('/')[-1]
 
         if not filename.split('.')[-1] == 'svg':
-            print(f'tentando baixar: {filename}')
             urllib.request.urlretrieve(url_img, os.path.join(self.output_directory, filename))
-            print(f'IMAGEM BAIXADA: {filename}')
+            print(f'[CRAWLER] Imagem baixada: {filename}')
 
             self._check_and_convert_image(os.path.join(self.output_directory, filename))
 
@@ -91,7 +86,6 @@ class ImageDownloader:
 
     def _check_and_convert_image(self, filename):
         if self._is_gif(filename):
-            print(f'Convertando {filename} para PNG')
             png_filename = self._gif_to_png(filename)
             return png_filename
         else:
@@ -105,14 +99,13 @@ def main():
             img_path = f"data/{dataset}/{row['title']}/{row['lang']}"
 
             if row['url'] != '':
-                print(f'tentando baixar: {row["url"]}')
                 downloader = ImageDownloader(row['url'], img_path)
                 downloader.start_download()
             else:
                 if not os.path.isdir(img_path):
                     os.makedirs(img_path)
     except Exception as e:
-        print(f"An error occurred out of scope: {e}")
+        print(f"[CRAWLER] Erro no módulo do Crawler: {e}")
 
 if __name__ == "__main__":
     main()

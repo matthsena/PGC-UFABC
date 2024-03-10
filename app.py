@@ -1,12 +1,13 @@
 import os
 import sys
+import numpy as np
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import time
 from itertools import combinations, product
-from models.cv.vgg19 import FeatureExtractor
+from models.vgg19 import FeatureExtractor
 from utils.scores import ScoreCalculator
-
+import matplotlib.pyplot as plt
 import concurrent.futures
 
 
@@ -53,7 +54,7 @@ class ImgFeatureExtractor:
                 try:
                     result = future.result()
                 except Exception as exc:
-                    print('%r generated an exception: %s' % (lang1, exc))
+                    print('[APP] (%r) Erro no app: %s' % (lang1, exc))
                 else:
                     results.append({
                         'article': base_folder,
@@ -65,6 +66,41 @@ class ImgFeatureExtractor:
                     })
         return results
 
+    def plot_bar(self, dfs, titles, article):
+        _, axes = plt.subplots(nrows=1, ncols=len(dfs), figsize=(15, 5))
+        for df, ax, title in zip(dfs, axes, titles):
+            df.plot(kind='bar', ax=ax, legend=True)
+            mean = df.mean().mean()
+            median = df.stack().median()
+            ax.axhline(mean, color='red', linestyle='--', label='Mean')
+            ax.axhline(median, color='blue', linestyle='-.', label='Median')
+            ax.set_ylabel('Score')
+            ax.set_xlabel('Langs')
+            ax.set_title(title)
+            ax.grid(True)
+            ax.legend()
+        if not os.path.exists('plots'):
+            os.makedirs('plots')
+        plt.tight_layout()
+        plt.savefig(f'plots/{article}.png')
+
+    def generate_plots(self, df):
+        articles = df.article.unique()
+        articles = np.array(articles)
+        articles = np.sort(articles)
+        for article in articles:
+            df_article = df[df['article'] == article]
+            df_simple = df_article[df_article['type'] == 'simple']
+            df_simple = df_simple.drop(columns=['type', 'article'])
+            df_decay = df_article[df_article['type'] == 'decay']
+            df_decay = df_decay.drop(columns=['type', 'article'])
+            dfgrowth = df_article[df_article['type'] == 'growth']
+            dfgrowth = dfgrowth.drop(columns=['type', 'article'])
+            df_parabola = df_article[df_article['type'] == 'parabola']
+            df_parabola = df_parabola.drop(columns=['type', 'article'])
+            self.plot_bar([df_simple, df_decay, dfgrowth, df_parabola], [
+                     'simple', 'decaimento', 'growth', 'parabola'], article)
+            
     def run(self):
         start = time.time()
         final_df = pd.DataFrame()
@@ -81,11 +117,12 @@ class ImgFeatureExtractor:
             score_z = score.calculate_score(df_result, folder)
             df = pd.DataFrame(score_z)
             final_df = pd.concat([final_df, df])
+        self.generate_plots(final_df)
         end = time.time()
         elapsed = (end - start) // 60
         print(
-            f"Total time taken: {elapsed} minutes and {(end - start) % 60:.2f} seconds")
-        final_df.to_csv('score.csv', index=False)
+            f"[APP]: {elapsed} minutos e {(end - start) % 60:.2f} segundos")
+
 
 if __name__ == "__main__":
     dataset = sys.argv[1]
