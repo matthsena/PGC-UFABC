@@ -162,12 +162,12 @@ cython_debug/
 
 data/
 
-# *.png
-# *.jpg
-# *.jpeg
-# *.gif
-# *.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
 
-# data-cidades/
-# data-classicos/
-# data-quentes/
+data-cidades/
+data-classicos/
+data-quentes/
