@@ -1,109 +1,118 @@
+import os
 import re
+import time
+from PIL import Image
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-import os
+
 import urllib.request
-import time
-import pandas as pd
-from PIL import Image
 
-start_time = time.time()
+class ImageDownloader:
+    def __init__(self, url, output_directory):
+        self.url = url
+        self.output_directory = output_directory
 
-def is_gif(filename):
-    return filename.split('.')[-1] == 'gif'
+    def start_download(self):
+        try:
+            options = self._get_chrome_options()
+            webdriver_service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=webdriver_service, options=options)
+            driver.get(self.url)
 
-def gif_to_png(filename):
-    with Image.open(filename) as im:
-    
-        im.seek(im.n_frames - 1)
-    
-        png_filename = filename.replace('.gif', '.png')
-        im.save(png_filename, 'png')
-        return png_filename
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "img")))
 
-def check_and_convert_image(filename):
-    if is_gif(filename):
-        print(f'Convertando {filename} para PNG')
-        png_filename = gif_to_png(filename)
+            img_elements = driver.find_elements(By.TAG_NAME, "img")
+            img_links = [img.get_attribute('src') for img in img_elements]
 
-        return png_filename
-    else:
-        return filename
+            self._create_directory_if_not_exists()
 
-def replace_px_value(string):
-    modified_string = re.sub(r'\b\d+px', '2240px', string)
-    return modified_string
+            for i, img_link in enumerate(img_links):
+                self._process_image_link(img_link)
 
-# url = 'https://en.wikipedia.org/wiki/Pel%C3%A9'
-# output_directory = './en-pele'
+            driver.quit()
+        except Exception as e:
+            print(f"An error occurred in start_download: {e}")
 
-def start_download(url, output_directory):
-    try:
+    def _get_chrome_options(self):
         options = Options()
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-        # options.add_argument("--headless")
+        options.add_argument("--headless")
+        return options
 
-        webdriver_service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=webdriver_service, options=options)
-        driver.get(url)
+    def _create_directory_if_not_exists(self):
+        if not os.path.isdir(self.output_directory):
+            os.makedirs(self.output_directory)
 
-        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "img")))
+    def _process_image_link(self, img_link):
+        pattern = r'/(\d+)px-'
+        matches = re.findall(pattern, img_link)
 
-        img_elements = driver.find_elements(By.TAG_NAME, "img")
-        img_links = [img.get_attribute('src') for img in img_elements]
-
-        if not os.path.isdir(output_directory):
-            os.makedirs(output_directory)
-
-        for i, img_link in enumerate(img_links):
-            # 
-            pattern = r'/(\d+)px-'
-            matches = re.findall(pattern, img_link)
-
-            if len(matches):
-                if int(matches[0]) < 100:
-                    print(f'imagem ignorada: {img_link}')
-                else:
-                    url_img = replace_px_value(img_link)
-                    filename = url_img.split('/')[-1]
-
-                    if not filename.split('.')[-1] == 'svg':
-                        print(f'tentando baixar: {filename}')
-                        urllib.request.urlretrieve(url_img, os.path.join(output_directory, filename))
-                        print(f'IMAGEM BAIXADA: {filename}')
-
-                        check_and_convert_image(os.path.join(output_directory, filename))
-                    # time.sleep(1)
-            else:
+        if len(matches):
+            if int(matches[0]) < 100:
                 print(f'imagem ignorada: {img_link}')
-
-        driver.quit()
-    except Exception as e:
-        print(f"An error occurred in start_download: {e}")
-
-
-try:
-    df = pd.read_csv('dataset.csv')
-
-    for i, row in df.iterrows():
-        img_path = f"data/{row['title']}/{row['lang']}"
-
-        if row['url'] != '':
-            print(f'tentando baixar: {row["url"]}')
-            start_download(row['url'], img_path)
+            else:
+                self._download_image(img_link)
         else:
-            if not os.path.isdir(img_path):
-                os.makedirs(img_path)
+            print(f'imagem ignorada: {img_link}')
 
-    end_time = time.time()
-    elapsed_time = (end_time - start_time) // 60
-    print(f"Total time taken: {elapsed_time:.2f} minutes")
-except Exception as e:
-    print(f"An error occurred out of scope: {e}")
+    def _download_image(self, img_link):
+        url_img = self._replace_px_value(img_link)
+        filename = url_img.split('/')[-1]
+
+        if not filename.split('.')[-1] == 'svg':
+            print(f'tentando baixar: {filename}')
+            urllib.request.urlretrieve(url_img, os.path.join(self.output_directory, filename))
+            print(f'IMAGEM BAIXADA: {filename}')
+
+            self._check_and_convert_image(os.path.join(self.output_directory, filename))
+
+    def _replace_px_value(self, string):
+        modified_string = re.sub(r'\b\d+px', '2240px', string)
+        return modified_string
+
+    def _is_gif(self, filename):
+        return filename.split('.')[-1] == 'gif'
+
+    def _gif_to_png(self, filename):
+        with Image.open(filename) as im:
+            im.seek(im.n_frames - 1)
+            png_filename = filename.replace('.gif', '.png')
+            im.save(png_filename, 'png')
+            return png_filename
+
+    def _check_and_convert_image(self, filename):
+        if self._is_gif(filename):
+            print(f'Convertando {filename} para PNG')
+            png_filename = self._gif_to_png(filename)
+            return png_filename
+        else:
+            return filename
+
+def main():
+    try:
+        df = pd.read_csv('./dataset-quentes.csv')
+
+        for _, row in df.iterrows():
+            img_path = f"data/{row['title']}/{row['lang']}"
+
+            if row['url'] != '':
+                print(f'tentando baixar: {row["url"]}')
+                downloader = ImageDownloader(row['url'], img_path)
+                downloader.start_download()
+            else:
+                if not os.path.isdir(img_path):
+                    os.makedirs(img_path)
+
+        print(f"Total time taken: {time.time() // 60:.2f} minutes")
+    except Exception as e:
+        print(f"An error occurred out of scope: {e}")
+
+if __name__ == "__main__":
+    main()

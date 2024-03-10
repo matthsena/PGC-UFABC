@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 from itertools import combinations, product
 from models.cv.vgg19 import FeatureExtractor
-from scores import ScoreCalculator
+from utils.scores import ScoreCalculator
 
 import concurrent.futures
 
