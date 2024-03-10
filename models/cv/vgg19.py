@@ -1,5 +1,3 @@
-import os
-import cv2
 from keras.applications.vgg19 import VGG19, preprocess_input
 from scipy.spatial import distance
 import keras.utils as image

@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import time
@@ -87,6 +88,7 @@ class ImgFeatureExtractor:
         final_df.to_csv('score.csv', index=False)
 
 if __name__ == "__main__":
-    data_dir = 'data-quentes'
+    dataset = sys.argv[1]
+    data_dir = f'data/{dataset}'
     extractor = ImgFeatureExtractor(data_dir)
     extractor.run()

@@ -10,10 +10,12 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-
+import sys
 import urllib.request
 
+dataset = sys.argv[1]
 class ImageDownloader:
+    
     def __init__(self, url, output_directory):
         self.url = url
         self.output_directory = output_directory
@@ -97,10 +99,10 @@ class ImageDownloader:
 
 def main():
     try:
-        df = pd.read_csv('./dataset-quentes.csv')
+        df = pd.read_csv(f'utils/datasets/{dataset}.csv')
 
         for _, row in df.iterrows():
-            img_path = f"data/{row['title']}/{row['lang']}"
+            img_path = f"data/{dataset}/{row['title']}/{row['lang']}"
 
             if row['url'] != '':
                 print(f'tentando baixar: {row["url"]}')
@@ -109,8 +111,6 @@ def main():
             else:
                 if not os.path.isdir(img_path):
                     os.makedirs(img_path)
-
-        print(f"Total time taken: {time.time() // 60:.2f} minutes")
     except Exception as e:
         print(f"An error occurred out of scope: {e}")
 
