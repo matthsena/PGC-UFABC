@@ -164,3 +164,7 @@ data/
 
 *.png
 *.jpg
+
+data-cidades/
+data-classicos/
+data-quentes/
