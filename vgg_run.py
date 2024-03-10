@@ -69,16 +69,17 @@ class ImgFeatureExtractor:
         final_df = pd.DataFrame()
         langs = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
         for folder in self.folders:
-            base_folder = f'{self.dir}/{folder}/'
+            base_path = f'{self.dir}/{folder}/'
             img_files = list(map(lambda path: self.get_img_files(
-                base_folder, path), langs))
-            features = self.extract_features(base_folder, img_files)
+                base_path, path), langs))
+            features = self.extract_features(base_path, img_files)
             compare_list = self.get_comparison_list(img_files)
-            results = self.get_results(base_folder, compare_list, features)
+            results = self.get_results(folder, compare_list, features)
             df_result = pd.DataFrame(results)
-            score_calculator = ScoreCalculator(df_result)
+            score_calculator = ScoreCalculator(df_result, folder)
             score_z = score_calculator.calculate_score()
-            df = self.create_df(folder, score_z)
+            print(score_z)
+            df = pd.DataFrame(score_z)
             pd.DataFrame(results).to_csv(
                 f'results/{folder}.csv', index=False)
             final_df = pd.concat([final_df, df])
@@ -87,13 +88,6 @@ class ImgFeatureExtractor:
         print(
             f"Total time taken: {elapsed} minutes and {(end - start) % 60:.2f} seconds")
         final_df.to_csv('score.csv', index=False)
-
-    def create_df(self, folder, score_z):
-        score_types = ['decay', 'growth', 'parabola', 'simple']
-        df = pd.DataFrame(
-            {f'{folder} Score {score_type}': score_z[score_type] for score_type in score_types}).T
-        return df
-
 
 if __name__ == "__main__":
     data_dir = 'data-quentes'
