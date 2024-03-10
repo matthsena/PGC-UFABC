@@ -77,11 +77,8 @@ class ImgFeatureExtractor:
             results = self.get_results(folder, compare_list, features)
             df_result = pd.DataFrame(results)
             score = ScoreCalculator()
-            score_z = score.calculate_score(df_result)
-            print(score_z)
+            score_z = score.calculate_score(df_result, folder)
             df = pd.DataFrame(score_z)
-            pd.DataFrame(results).to_csv(
-                f'results/{folder}.csv', index=False)
             final_df = pd.concat([final_df, df])
         end = time.time()
         elapsed = (end - start) // 60
