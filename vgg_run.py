@@ -76,8 +76,8 @@ class ImgFeatureExtractor:
             compare_list = self.get_comparison_list(img_files)
             results = self.get_results(folder, compare_list, features)
             df_result = pd.DataFrame(results)
-            score_calculator = ScoreCalculator(df_result, folder)
-            score_z = score_calculator.calculate_score()
+            score = ScoreCalculator()
+            score_z = score.calculate_score(df_result)
             print(score_z)
             df = pd.DataFrame(score_z)
             pd.DataFrame(results).to_csv(

@@ -1,52 +1,76 @@
 import numpy as np
 import pandas as pd
+import math
 from hashlib import sha256
 
-
 class ScoreCalculator:
-    MAX_LANGS = 8
-    LANGUAGES_TO_CHECK = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
+    def __init__(self, N_LANGS = 8):
+        self.N_LANGS = N_LANGS
 
-    def __init__(self, dataframe, article_name):
-        self.article_name = article_name
-        self.dataframe = dataframe
-        self.dataframe['id'] = self.dataframe['original_photo'].apply(
-            lambda x: sha256(x.encode('utf-8')).hexdigest())
+    def __parabola_score(self, x):
+        if x <= (self.N_LANGS // 2):
+            return np.exp(-(x - 1) / math.pi)
+        return np.exp((x) / math.pi) / np.exp(self.N_LANGS / math.pi)
 
-    def calculate_score(self):
-        close_distance_df, far_distance_df = self._split_dataframe_by_distance()
-        sorted_df = self._create_and_sort_df(
-            far_distance_df, close_distance_df)
-        return self._calculate_scores(sorted_df)
+    def __decay_score(self, x):
+        return np.exp(-(x - 1) / math.pi)
 
-    def _split_dataframe_by_distance(self):
-        close_distance_df = self.dataframe[self.dataframe['distance'] <= 0.25]
-        far_distance_df = self.dataframe[~self.dataframe['id'].isin(
-            close_distance_df['id']) & self.dataframe['distance'] > 0.25]
-        return close_distance_df.drop_duplicates(subset=['id']), far_distance_df
+    def __growth_score(self, x):
+        return np.exp((x) / math.pi) / np.exp(self.N_LANGS / math.pi)
 
-    def _create_and_sort_df(self, far_distance_df, close_distance_df):
-        unique_df = far_distance_df.assign(
-            languages=far_distance_df['original'].apply(lambda x: [x]), num_languages=1)
-        similar_df = close_distance_df.groupby('original_photo').apply(lambda x: pd.Series({
-            'languages': list(set(x['original']).union(set(x['compare']))),
-            'num_languages': len(list(set(x['original']).union(set(x['compare'])))),
-            'id': x['id'].values[0]
-        })).reset_index()
-        return pd.concat([similar_df, unique_df]).sort_values(by='num_languages', ascending=False)
+    def __simple_score(self, x):
+        return 2 if x == 1 else 1
 
-    def _calculate_scores(self, sorted_df):
-        sorted_df = sorted_df.assign(
-            decay=sorted_df['num_languages'].apply(
-                lambda x: np.exp(-(x - 1) / np.pi)),
-            growth=sorted_df['num_languages'].apply(
-                lambda x: np.exp(x / np.pi) / np.exp(self.MAX_LANGS / np.pi)),
-            parabola=sorted_df['num_languages'].apply(
-                self._calculate_parabola_score),
-            simple=sorted_df['num_languages'].apply(
-                lambda x: 2 if x == 1 else 1)
-        )
-        return [{**{lang: sorted_df[sorted_df['languages'].apply(lambda x: lang in x)][score].sum() for lang in self.LANGUAGES_TO_CHECK}, 'type': score, 'article': self.article_name} for score in ['decay', 'growth', 'parabola', 'simple']]
+    def calculate_score(self, df):
+        df['id'] = df['original_photo'].apply(lambda x: sha256(x.encode('utf-8')).hexdigest())
+        
+        filtered_df = df[df['distance'] <= 0.25]
 
-    def _calculate_parabola_score(self, num_languages):
-        return np.exp(-(num_languages - 1) / np.pi) if num_languages <= (self.MAX_LANGS // 2) else np.exp(num_languages / np.pi) / np.exp(self.MAX_LANGS / np.pi)
+        filtered_no_eq_df = df[~df['id'].isin(filtered_df['id']) & df['distance'] > 0.25]
+        filtered_no_eq_df = filtered_no_eq_df.drop_duplicates(subset=['id'])
+
+        uniques_df = pd.DataFrame({
+            'original_photo': filtered_no_eq_df['original_photo'],
+            'languages':  filtered_no_eq_df['original'].apply(lambda x: [x]),
+            'num_languages': 1
+        }).reset_index()
+
+        similar_df = (filtered_df.groupby('original_photo')
+                 .apply(lambda x: pd.Series({
+                     'languages': list(set(x['original']).union(set(x['compare']))),
+                     'num_languages': len(list(set(x['original']).union(set(x['compare'])))),
+                     'id': x['id']
+                     }))
+                 .reset_index())
+        
+        grouped_df = pd.concat([similar_df, uniques_df])
+        sorted_df = grouped_df.sort_values(by='num_languages', ascending=False)
+
+        sorted_df['decay'] = sorted_df['num_languages'].apply(lambda x: self.__decay_score(x))
+        sorted_df['growth'] = sorted_df['num_languages'].apply(lambda x: self.__growth_score(x))
+        sorted_df['parabola'] = sorted_df['num_languages'].apply(lambda x: self.__parabola_score(x))
+        sorted_df['simple'] = sorted_df['num_languages'].apply(lambda x: self.__simple_score(x))
+
+        langs_to_check = ['pt', 'en', 'es', 'de', 'it', 'ru', 'zh', 'fr']
+
+        dict_scores_decay = {}
+        dict_scores_growth = {}
+        dict_scores_parabola = {}
+        dict_scores_simple = {}
+
+        for lang in langs_to_check:
+            lang_df = sorted_df[sorted_df['languages'].apply(lambda x: lang in x)]
+
+            dict_scores_decay[lang] = lang_df['decay'].sum()
+            dict_scores_growth[lang] = lang_df['growth'].sum()
+            dict_scores_parabola[lang] = lang_df['parabola'].sum()
+            dict_scores_simple[lang] = lang_df['simple'].sum()
+
+        scores = {
+            'decay': dict_scores_decay,
+            'growth': dict_scores_growth,
+            'parabola': dict_scores_parabola,
+            'simple': dict_scores_simple,
+        }
+
+        return scores
