@@ -126,6 +126,6 @@ class ImgFeatureExtractor:
 
 if __name__ == "__main__":
     dataset = sys.argv[1]
-    data_dir = f'data/{dataset}'
+    data_dir = f'images/{dataset}'
     extractor = ImgFeatureExtractor(data_dir)
     extractor.run()

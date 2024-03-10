@@ -96,7 +96,7 @@ def main():
         df = pd.read_csv(f'utils/datasets/{dataset}.csv')
 
         for _, row in df.iterrows():
-            img_path = f"data/{dataset}/{row['title']}/{row['lang']}"
+            img_path = f"images/{dataset}/{row['title']}/{row['lang']}"
 
             if row['url'] != '':
                 downloader = ImageDownloader(row['url'], img_path)
