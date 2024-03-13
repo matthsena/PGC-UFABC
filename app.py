@@ -1,14 +1,20 @@
 import os
 import sys
+import cv2
 import numpy as np
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 import time
 from itertools import combinations, product
-from models.vgg19 import FeatureExtractor
+from models.cv.vgg19 import FeatureExtractor
+from models.cv.ocr import OCRPredictor
+from models.cv.inception3 import predict as inception3_predictor
+from models.cv.resnet50 import predict as resnet50_predictor
+from models.cv.panoptic import PanopticPredictor
 from utils.scores import ScoreCalculator
 import matplotlib.pyplot as plt
 import concurrent.futures
+import database.sqlite as database
 
 
 class ImgFeatureExtractor:
@@ -17,6 +23,9 @@ class ImgFeatureExtractor:
         self.extractor = FeatureExtractor()
         self.folders = [f for f in os.listdir(
             self.dir) if os.path.isdir(os.path.join(self.dir, f))]
+        self.db = database.SQLiteOperations()
+        self.ocr_predictor = OCRPredictor()
+        self.panoptic_predictor = PanopticPredictor()
 
     def get_img_files(self, folder, path):
         folder_path = os.path.join(folder, path)
@@ -31,6 +40,35 @@ class ImgFeatureExtractor:
                 img_path = os.path.join(lang, photo)
                 img = os.path.join(base_folder, img_path)
                 features[img_path] = self.extractor.extract_features(img)
+                # Salva no DB e pega outros itens
+                features_list = features[img_path].tolist()
+                feature_history = self.db.select_by_features(features_list)                
+                if feature_history is not None:
+                    self.db.upsert(img, lang, features_list, feature_history['ocr'], feature_history[
+                            'panoptic'], feature_history['inception_v3'], feature_history['resnet50'])
+                    print(
+                        f"Imagem {img} já existe uma identica no banco de dados.")
+                else:
+                    with ThreadPoolExecutor() as executor:
+                        img_cv2 = cv2.imread(img)
+                        img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_BGR2RGB)
+                        ocr_texts_future = executor.submit(
+                            self.ocr_predictor.predict, img_cv2)
+                        inception_classes_future = executor.submit(
+                            inception3_predictor, img_cv2)
+                        resnet_classes_future = executor.submit(
+                            resnet50_predictor, img_cv2)
+                        panoptic_classes_future = executor.submit(
+                            self.panoptic_predictor.predict, img_cv2)
+
+                    ocr_texts = ocr_texts_future.result()
+                    inception_classes = inception_classes_future.result()
+                    resnet_classes = resnet_classes_future.result()
+                    panoptic_classes = panoptic_classes_future.result()
+
+                    self.db.upsert(img, lang, features_list, ocr_texts,
+                            panoptic_classes, inception_classes, resnet_classes)
+
         return features
 
     def get_comparison_list(self, img_files):
