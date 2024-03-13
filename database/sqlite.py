@@ -23,6 +23,29 @@ class SQLiteOperations:
     def __del__(self):
         self.conn.close()
         
+    def select_by_path(self, path):
+        try:
+            self.cursor.execute('''
+        SELECT * FROM image_params WHERE file_path = ?
+        ''', (path,))
+            row = self.cursor.fetchone()
+            if row is not None:
+                return {
+                    'file_path': row[0],
+                    'lang': row[1],
+                    'article': row[2],
+                    'features': json.loads(row[3]),
+                    'ocr': json.loads(row[4]),
+                    'panoptic': json.loads(row[5]),
+                    'inception_v3': json.loads(row[6]),
+                    'resnet50': json.loads(row[7])
+                }
+            else:
+                return None
+        except Exception as e:
+            print(f"Erro ao selecionar dados: {e}")
+            return None
+        
     def select_by_features(self, features):
         try:
             features = json.dumps(features)
@@ -47,7 +70,30 @@ class SQLiteOperations:
             print(f"Erro ao selecionar dados: {e}")
             return None
     
-    def upsert(self, file_path, lang, features, ocr, panoptic, inception_v3, resnet50):
+    def select_all(self):
+        try:
+            self.cursor.execute('''
+        SELECT * FROM image_params
+        ''')
+            rows = self.cursor.fetchall()
+            result = []
+            for row in rows:
+                result.append({
+                    'file_path': row[0],
+                    'lang': row[1],
+                    'article': row[2],
+                    'features': json.loads(row[3]),
+                    'ocr': json.loads(row[4]),
+                    'panoptic': json.loads(row[5]),
+                    'inception_v3': json.loads(row[6]),
+                    'resnet50': json.loads(row[7])
+                })
+            return result
+        except Exception as e:
+            print(f"Erro ao selecionar dados: {e}")
+            return None
+    
+    def upsert(self, file_path, lang, article, features, ocr, panoptic, inception_v3, resnet50):
         try:
             features = json.dumps(features)
             ocr = json.dumps(ocr)
@@ -63,7 +109,7 @@ class SQLiteOperations:
             INSERT OR REPLACE INTO image_params
             (file_path, lang, article, features, ocr, panoptic, inception_v3, resnet50)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (file_path, lang, sys.argv[1], features, ocr, panoptic, inception_v3, resnet50))
+            ''', (file_path, lang, article, features, ocr, panoptic, inception_v3, resnet50))
             self.conn.commit()
         except sqlite3.IntegrityError as e:
             print(f"Erro de integridade do SQLite: {e}")

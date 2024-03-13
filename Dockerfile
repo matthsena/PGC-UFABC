@@ -1,5 +1,5 @@
 # Use an official NVIDIA CUDA base image with Python support
-FROM nvidia/cuda:11.2.0-base-ubuntu20.04
+FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
 
 # Set a working directory
 WORKDIR /app
@@ -7,9 +7,6 @@ WORKDIR /app
 # Install Python 3 and pip
 RUN apt-get update && \
     apt-get install -y python3-pip python3-dev && \
-    ln -s /usr/bin/python3 /usr/bin/python && \
-    ln -s /usr/bin/pip3 /usr/bin/pip && \
-    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip to the latest version

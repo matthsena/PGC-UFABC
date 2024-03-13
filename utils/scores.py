@@ -82,4 +82,4 @@ class ScoreCalculator:
         }
         scores_list = [{'type': score_type, 'article': article_name, **scores}
                        for score_type, scores in scores.items()]
-        return scores_list
+        return scores_list, uniques_df

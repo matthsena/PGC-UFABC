@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import cv2
 import numpy as np
@@ -11,6 +12,7 @@ from models.cv.ocr import OCRPredictor
 from models.cv.inception3 import predict as inception3_predictor
 from models.cv.resnet50 import predict as resnet50_predictor
 from models.cv.panoptic import PanopticPredictor
+import models.llm.zero_shot as zero_shot
 from utils.scores import ScoreCalculator
 import matplotlib.pyplot as plt
 import concurrent.futures
@@ -33,7 +35,7 @@ class ImgFeatureExtractor:
             folder_path) if os.path.isfile(os.path.join(folder_path, file))]
         return (path, sorted(file_list))
 
-    def extract_features(self, base_folder, img_files):
+    def extract_features(self, base_folder, img_files, folder):
         features = {}
         for lang, photos in img_files:
             for photo in photos:
@@ -44,10 +46,10 @@ class ImgFeatureExtractor:
                 features_list = features[img_path].tolist()
                 feature_history = self.db.select_by_features(features_list)                
                 if feature_history is not None:
-                    self.db.upsert(img, lang, features_list, feature_history['ocr'], feature_history[
+                    self.db.upsert(img, lang, folder, features_list, feature_history['ocr'], feature_history[
                             'panoptic'], feature_history['inception_v3'], feature_history['resnet50'])
-                    print(
-                        f"Imagem {img} já existe uma identica no banco de dados.")
+                    # print(
+                    #     f"Imagem {img} já existe uma identica no banco de dados.")
                 else:
                     with ThreadPoolExecutor() as executor:
                         img_cv2 = cv2.imread(img)
@@ -66,7 +68,7 @@ class ImgFeatureExtractor:
                     resnet_classes = resnet_classes_future.result()
                     panoptic_classes = panoptic_classes_future.result()
 
-                    self.db.upsert(img, lang, features_list, ocr_texts,
+                    self.db.upsert(img, lang, folder, features_list, ocr_texts,
                             panoptic_classes, inception_classes, resnet_classes)
 
         return features
@@ -138,7 +140,30 @@ class ImgFeatureExtractor:
             df_parabola = df_parabola.drop(columns=['type', 'article'])
             self.plot_bar([df_simple, df_decay, dfgrowth, df_parabola], [
                      'simple', 'decaimento', 'growth', 'parabola'], article)
-            
+    
+    def check_with_llm(self, df, folder):
+        all_imgs = self.db.select_all()
+        
+        for _, row in df.iterrows():
+            path = f'{self.dir}/{folder}/{row["languages"][0]}/{row["original_photo"]}'
+            current_img = self.db.select_by_path(path)
+            for img in all_imgs:
+                if img['file_path'] != path and img['lang'] != row['languages'][0] and img['article'] == folder:
+                    preds1 = zero_shot.merge_and_sum_predictions(current_img['inception_v3'], current_img['resnet50'])
+                    preds2 = zero_shot.merge_and_sum_predictions(img['inception_v3'], img['resnet50'])
+                    panoptic1 = zero_shot.format_panoptic_list(current_img['panoptic'])
+                    panoptic2 = zero_shot.format_panoptic_list(img['panoptic'])
+                    ocr1 = zero_shot.discart_or_format_ocr(current_img['ocr'])
+                    ocr2 = zero_shot.discart_or_format_ocr(img['ocr'])
+                    llm_output = zero_shot.generate_text(preds1, preds2, panoptic1, panoptic2, ocr1, ocr2)
+                    # regex
+                    is_similar = True if re.search(r'yes', llm_output, re.IGNORECASE) else False
+
+                    if is_similar:
+                        print(f"Imagem {path} é similar a {img['file_path']}")
+                        print(llm_output)
+                        print(10 * '---')
+
     def run(self):
         start = time.time()
         final_df = pd.DataFrame()
@@ -147,12 +172,13 @@ class ImgFeatureExtractor:
             base_path = f'{self.dir}/{folder}/'
             img_files = list(map(lambda path: self.get_img_files(
                 base_path, path), langs))
-            features = self.extract_features(base_path, img_files)
+            features = self.extract_features(base_path, img_files, folder)
             compare_list = self.get_comparison_list(img_files)
             results = self.get_results(folder, compare_list, features)
             df_result = pd.DataFrame(results)
             score = ScoreCalculator()
-            score_z = score.calculate_score(df_result, folder)
+            score_z, uniques = score.calculate_score(df_result, folder)
+            self.check_with_llm(uniques, folder)
             df = pd.DataFrame(score_z)
             final_df = pd.concat([final_df, df])
         self.generate_plots(final_df)
